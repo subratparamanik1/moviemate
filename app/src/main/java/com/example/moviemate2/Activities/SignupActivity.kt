@@ -23,7 +23,6 @@ import java.util.concurrent.TimeUnit
 
 class SignupActivity : AppCompatActivity() {
 
-    // Declare views and Firebase instances
     private lateinit var auth: FirebaseAuth
     private lateinit var edUserNameLayout: TextInputLayout
     private lateinit var edEmailIdLayout: TextInputLayout
@@ -60,24 +59,14 @@ class SignupActivity : AppCompatActivity() {
         edConPassword = findViewById(R.id.edConPassword)
         signUpBtn = findViewById(R.id.signUpBtn)
 
+        // Set up TextWatchers for validation
+        edUserName.addTextChangedListener(createTextWatcher(edUserNameLayout, ::validUsername, "Invalid username. Use 3-20 characters, letters, numbers, underscores, or hyphens."))
+        edEmailId.addTextChangedListener(createTextWatcher(edEmailIdLayout, ::validEmail, "Enter a valid e-mail!"))
+        edPhoneNum.addTextChangedListener(createTextWatcher(edPhoneNumLayout, ::validPhoneNo, "Enter a valid phone number!"))
+        edPassword.addTextChangedListener(createTextWatcher(edPasswordLayout, ::validatePassword, "Password must be at least 8 characters!"))
+        edConPassword.addTextChangedListener(createTextWatcher(edConPasswordLayout, ::validateConfirmPassword, "Passwords don't match!"))
+
         signUpBtn.setOnClickListener { validation() }
-
-        // Password validation listeners
-        edPassword.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: Editable) {
-                validateEditTextPassword(edPasswordLayout, edPassword.text.toString(), "password")
-            }
-        })
-
-        edConPassword.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: Editable) {
-                validateEditTextPassword(edConPasswordLayout, edConPassword.text.toString(), "conPassword")
-            }
-        })
 
         loadingDialog = Dialog(this)
         loadingDialog.setContentView(R.layout.activity_signup)
@@ -96,57 +85,42 @@ class SignupActivity : AppCompatActivity() {
         val conPassword = edConPassword.text.toString().trim()
 
         // Perform validation checks
-        if (userName.isEmpty()) {
-            edUserNameLayout.error = "Required"
-        } else if (emailId.isEmpty()) {
-            edEmailIdLayout.error = "Required"
-        } else if (!validEmail(emailId)) {
-            edEmailIdLayout.error = "Enter valid e-mail!"
-        } else if (phoneNum.isEmpty()) {
-            edPhoneNumLayout.error = "Required"
-        } else if (!validPhoneNo(phoneNum)) {
-            edPhoneNumLayout.error = "Enter valid phone no.!"
+        if (userName.isEmpty() || !validUsername(userName)) {
+            edUserNameLayout.error = "Invalid username. Use 3-20 characters, letters, numbers, underscores, or hyphens."
+        } else if (emailId.isEmpty() || !validEmail(emailId)) {
+            edEmailIdLayout.error = "Enter a valid e-mail!"
+        } else if (phoneNum.isEmpty() || !validPhoneNo(phoneNum)) {
+            edPhoneNumLayout.error = "Enter a valid phone number!"
+        } else if (!validatePassword(password)) {
+            edPasswordLayout.error = "Password must be at least 8 characters!"
+        } else if (password != conPassword) {
+            edConPasswordLayout.error = "Passwords don't match!"
         } else {
-            validateEditTextPassword(edPasswordLayout, password, "password")
-            if (isValidPassword) {
-                validateEditTextPassword(edConPasswordLayout, conPassword, "conPassword")
-                if (isValidConPassword) {
-                    if (password != conPassword) {
-                        edConPasswordLayout.error = "Passwords don't match!"
-                    } else {
-                        edConPasswordLayout.error = null
-
-                        // Create user with email and password
-                        auth.createUserWithEmailAndPassword(emailId, password)
-                            .addOnCompleteListener(this) { task ->
-                                if (task.isSuccessful) {
-                                    // Store user details
-                                    val uid = auth.currentUser?.uid
-                                    val database = FirebaseDatabase.getInstance().reference
-                                    val userMap = mapOf(
-                                        "userName" to userName,
-                                        "emailId" to emailId,
-                                        "phoneNum" to phoneNum
-                                    )
-
-                                    if (uid != null) {
-                                        database.child("users").child(uid).setValue(userMap)
-                                            .addOnCompleteListener { storeTask ->
-                                                if (!storeTask.isSuccessful) {
-                                                    Toast.makeText(this, "Failed to store user data: ${storeTask.exception?.message}", Toast.LENGTH_SHORT).show()
-                                                } else {
-                                                    // Send OTP after successful registration
-                                                    sendOtp(phoneNum)
-                                                }
-                                            }
+            // Firebase user creation logic
+            auth.createUserWithEmailAndPassword(emailId, password)
+                .addOnCompleteListener(this) { task ->
+                    if (task.isSuccessful) {
+                        val uid = auth.currentUser?.uid
+                        val database = FirebaseDatabase.getInstance().reference
+                        val userMap = mapOf(
+                            "userName" to userName,
+                            "emailId" to emailId,
+                            "phoneNum" to phoneNum
+                        )
+                        if (uid != null) {
+                            database.child("users").child(uid).setValue(userMap)
+                                .addOnCompleteListener { storeTask ->
+                                    if (!storeTask.isSuccessful) {
+                                        Toast.makeText(this, "Failed to store user data: ${storeTask.exception?.message}", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        sendOtp(phoneNum)
                                     }
-                                } else {
-                                    Toast.makeText(this, "Authentication Failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
                                 }
-                            }
+                        }
+                    } else {
+                        Toast.makeText(this, "Authentication Failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
                     }
                 }
-            }
         }
     }
 
@@ -156,16 +130,12 @@ class SignupActivity : AppCompatActivity() {
             .setTimeout(60L, TimeUnit.SECONDS)
             .setActivity(this)
             .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
-                override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                    // Direct automatic OTP completion is handled in OTPVerificationActivity
-                }
-
+                override fun onVerificationCompleted(credential: PhoneAuthCredential) {}
                 override fun onVerificationFailed(e: FirebaseException) {
                     Toast.makeText(this@SignupActivity, "Failed to send OTP: ${e.message}", Toast.LENGTH_LONG).show()
                 }
 
                 override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
-                    // Save verification ID and start OTP verification activity
                     val intent = Intent(this@SignupActivity, OTPVerificationActivity::class.java)
                     intent.putExtra("phoneNumber", phoneNum)
                     intent.putExtra("verificationId", verificationId)
@@ -175,45 +145,42 @@ class SignupActivity : AppCompatActivity() {
         PhoneAuthProvider.verifyPhoneNumber(options)
     }
 
-    private fun validateEditTextPassword(
-        textInputLayout: TextInputLayout,
-        text: String,
-        state: String
-    ) {
-        var truthState = false
-        when {
-            text.trim().isEmpty() -> {
-                textInputLayout.error = "Required"
-            }
-            text.length < 8 -> {
-                textInputLayout.error = "Password must be at least 8 characters!"
-            }
-            else -> {
-                textInputLayout.error = null
-                truthState = true
-            }
-        }
-        if (truthState) {
-            if (state == "password") {
-                isValidPassword = true
-            } else if (state == "conPassword") {
-                isValidConPassword = true
-            }
-        } else {
-            if (state == "password") {
-                isValidPassword = false
-            } else if (state == "conPassword") {
-                isValidConPassword = false
+    // TextWatcher for each field
+    private fun createTextWatcher(layout: TextInputLayout, validator: (String) -> Boolean, errorMsg: String) = object : TextWatcher {
+        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        override fun afterTextChanged(s: Editable?) {
+            if (s != null && validator(s.toString().trim())) {
+                layout.error = null
+            } else {
+                layout.error = errorMsg
             }
         }
     }
 
+    // Validation functions
     private fun validEmail(email: String): Boolean {
-        return Patterns.EMAIL_ADDRESS.matcher(email).matches()
+        val emailPattern = Regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")
+        return email.matches(emailPattern) && Patterns.EMAIL_ADDRESS.matcher(email).matches()
     }
+
 
     private fun validPhoneNo(phoneNo: String): Boolean {
-        val regex = Regex("^\\+91[6-9][0-9]{9}\$|^[6-9][0-9]{9}\$")
+        val regex = Regex("^[6-9][0-9]{9}$") // Ensures the number starts with 6-9 and followed by 9 digits
         return phoneNo.matches(regex)
+    }
+
+
+    private fun validUsername(username: String): Boolean {
+        val usernamePattern = "^[a-zA-Z0-9](?!.*[_-]{2})[a-zA-Z0-9_-]{1,18}[a-zA-Z0-9]$"
+        return username.matches(Regex(usernamePattern))
+    }
+
+    private fun validatePassword(password: String): Boolean {
+        return password.length >= 8
+    }
+
+    private fun validateConfirmPassword(conPassword: String): Boolean {
+        return conPassword == edPassword.text.toString()
     }
 }

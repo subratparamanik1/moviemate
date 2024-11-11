@@ -14,11 +14,11 @@ import androidx.recyclerview.widget.RecyclerView
 import com.android.volley.Request
 import com.android.volley.RequestQueue
 import com.android.volley.Response
+import com.example.moviemate2.Activities.SeatListActivity
 import com.android.volley.VolleyError
 import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
 import com.bumptech.glide.Glide
-import com.example.moviemate2.Activities.SeatListActivity
 import com.example.moviemate2.Adapters.ActorsListAdapter
 import com.example.moviemate2.Domain.FilmItem
 import com.example.moviemate2.R

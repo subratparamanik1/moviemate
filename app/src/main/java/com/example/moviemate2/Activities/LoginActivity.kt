@@ -2,18 +2,23 @@ package com.example.moviemate2.Activities
 
 import android.content.Intent
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
+import android.util.Patterns
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.example.moviemate2.R
+import com.google.android.material.textfield.TextInputLayout
 import com.google.firebase.auth.FirebaseAuth
 
 class LoginActivity : AppCompatActivity() {
 
     private lateinit var auth: FirebaseAuth
-    private lateinit var userEdt: EditText
+    private lateinit var edEmailId: EditText
+    private lateinit var edEmailIdLayout: TextInputLayout
     private lateinit var passEdt: EditText
     private lateinit var loginBtn: Button
     private lateinit var forgotPasswordTextView: TextView
@@ -31,12 +36,14 @@ class LoginActivity : AppCompatActivity() {
         }
 
         auth = FirebaseAuth.getInstance()
-        userEdt = findViewById(R.id.editTextText)
+        edEmailId = findViewById(R.id.editTextText)
+        edEmailIdLayout = findViewById(R.id.edEmailIdLayout)
         passEdt = findViewById(R.id.editTextPassword)
         loginBtn = findViewById(R.id.loginBtn)
         forgotPasswordTextView = findViewById(R.id.textView2)
         registerNowTextView = findViewById(R.id.textView4)
 
+        edEmailId.addTextChangedListener(createTextWatcher(edEmailIdLayout, ::validEmail, "Enter a valid e-mail!"))
         loginBtn.setOnClickListener {
             handleLogin()
         }
@@ -51,7 +58,7 @@ class LoginActivity : AppCompatActivity() {
     }
     //function to handle login
     private fun handleLogin() {
-        val emailId = userEdt.text.toString().trim()
+        val emailId = edEmailId.text.toString().trim()
         val password = passEdt.text.toString().trim()
 
         if (emailId.isEmpty() || password.isEmpty()) {
@@ -73,5 +80,23 @@ class LoginActivity : AppCompatActivity() {
                     ).show()
                 }
             }
+    }
+    private fun createTextWatcher(layout: TextInputLayout, validator: (String) -> Boolean, errorMsg: String) = object :
+        TextWatcher {
+        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        override fun afterTextChanged(s: Editable?) {
+            if (s != null && validator(s.toString().trim())) {
+                layout.error = null
+            } else {
+                layout.error = errorMsg
+            }
+        }
+    }
+
+    // Validation functions
+    private fun validEmail(email: String): Boolean {
+        val emailPattern = Regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")
+        return email.matches(emailPattern) && Patterns.EMAIL_ADDRESS.matcher(email).matches()
     }
 }
