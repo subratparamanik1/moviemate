@@ -26,26 +26,4 @@ MovieMate is an Android-based project for online movie ticket booking. This appl
 - Java Development Kit (JDK)
 - Internet connection for API calls
 
-## Installation
 
-1. Clone the repository:
-    ```bash
-    git clone https://github.com/yourusername/moviemate.git
-    ```
-2. Open the project in Android Studio.
-3. Build the project to download dependencies.
-
-## Usage
-
-1. Launch the app on an Android device or emulator.
-2. Register or log in to your account.
-3. Browse the available movies and showtimes.
-4. Select a movie and choose a showtime.
-5. Proceed to book tickets.
-
-## Contributing
-
-1. Fork the repository.
-2. Create a new branch for your feature or bugfix.
-3. Commit your changes and push to your branch.
-4. Create a pull request.
